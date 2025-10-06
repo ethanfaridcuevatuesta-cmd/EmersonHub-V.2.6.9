@@ -1,11 +1,8 @@
--- V.2.6.9 Studio (LocalScript)
--- Emerson Hub — Versión de prueba para Roblox Studio
--- Pegar en StarterPlayer -> StarterPlayerScripts
+-- V.2.6.9 (Studio-safe) - Igual a V.2.6.8 pero con SpeedMenu movible y deslizado suave
+-- USAR SOLO EN ROBLOX STUDIO (StarterPlayer -> StarterPlayerScripts)
+-- No incluye compatibilidad para executors externos.
 
--- Bloque de compatibilidad robusto (Studio)
-if not game:IsLoaded() then
-    game.Loaded:Wait()
-end
+if not game:IsLoaded() then game.Loaded:Wait() end
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -16,11 +13,11 @@ local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui", 12)
 if not PlayerGui then
-    warn("[Emerson] PlayerGui no encontrado. Ejecuta 'Play' o 'Start Server -> Start Player' en Studio.")
+    warn("[Emerson v2.6.9] PlayerGui no encontrado. Ejecuta Play/Start Player en Studio.")
     return
 end
 
--- Notificación estilo V2.6.x
+-- Notificaciones (estilo V2.6.x)
 local function Notify(msg)
     pcall(function()
         StarterGui:SetCore("SendNotification", {
@@ -31,7 +28,7 @@ local function Notify(msg)
     end)
 end
 
--- Estados persistentes en sesión
+-- Estados persistentes
 local States = {
     SpeedBoost = false,
     SpeedChoice = 3, -- 1..5
@@ -54,7 +51,6 @@ States.SpeedMultiplier = choiceToMultiplier(States.SpeedChoice)
 local char, humanoid, rootPart, originalWalkSpeed
 local savedTP1 = nil
 
--- reaplicar estados (Speed/Noclip) tras teleport/respawn
 local function applyStates()
     if humanoid then
         originalWalkSpeed = originalWalkSpeed or humanoid.WalkSpeed or 16
@@ -66,28 +62,20 @@ local function applyStates()
     end
     if States.Noclip and char then
         for _,p in ipairs(char:GetDescendants()) do
-            if p:IsA("BasePart") then
-                p.CanCollide = false
-            end
+            if p:IsA("BasePart") then p.CanCollide = false end
         end
     end
 end
 
--- binding personaje
-local teleportWatcher = nil
+-- binding personaje y reaplicar en respawn/teleport brusco
+local teleportWatcher
 local function bindCharacter(c)
     if not c then return end
     char = c
     humanoid = c:FindFirstChildOfClass("Humanoid") or c:WaitForChild("Humanoid", 5)
     rootPart = c:FindFirstChild("HumanoidRootPart") or c:WaitForChild("HumanoidRootPart", 5)
-
-    if humanoid then
-        originalWalkSpeed = originalWalkSpeed or humanoid.WalkSpeed or 16
-    end
-
+    if humanoid then originalWalkSpeed = originalWalkSpeed or humanoid.WalkSpeed or 16 end
     applyStates()
-
-    -- vigilar teleports para reaplicar estados si hay teleporte brusco
     if teleportWatcher and teleportWatcher.Disconnect then
         pcall(function() teleportWatcher:Disconnect() end)
         teleportWatcher = nil
@@ -98,7 +86,6 @@ local function bindCharacter(c)
             local d = (rootPart.CFrame.p - last.p).magnitude
             last = rootPart.CFrame
             if d > 6 then
-                -- teleporte detectado, reaplicar
                 task.delay(0.02, applyStates)
                 task.delay(0.12, applyStates)
             end
@@ -109,24 +96,21 @@ end
 Players.LocalPlayer.CharacterAdded:Connect(bindCharacter)
 if Players.LocalPlayer.Character then bindCharacter(Players.LocalPlayer.Character) end
 
--- ===== UI CREATION =====
+-- ===== UI CREATION (idéntico a V.2.6.8 visualmente) =====
 local function createUI()
     local gui = Instance.new("ScreenGui")
     gui.Name = "EmersonHub_v2_6_9"
     gui.ResetOnSpawn = false
     gui.Parent = PlayerGui
 
-    -- Main Frame
-    local main = Instance.new("Frame", gui)
-    main.Name = "MainFrame"
-    main.Size = UDim2.new(0,260,0,300)
-    main.Position = UDim2.new(0.35, 0, 0.22, 0)
-    main.BackgroundColor3 = Color3.fromRGB(255,255,255)
-    local mainCorner = Instance.new("UICorner", main); mainCorner.CornerRadius = UDim.new(0,8)
+    local frame = Instance.new("Frame", gui)
+    frame.Name = "MainFrame"
+    frame.Size = UDim2.new(0,260,0,300)
+    frame.Position = UDim2.new(0.35,0,0.22,0)
+    frame.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    local rc = Instance.new("UICorner", frame); rc.CornerRadius = UDim.new(0,8)
 
-    -- Title bar
-    local titleBar = Instance.new("Frame", main)
-    titleBar.Name = "TitleBar"
+    local titleBar = Instance.new("Frame", frame)
     titleBar.Size = UDim2.new(1,0,0,36)
     titleBar.BackgroundTransparency = 1
 
@@ -148,44 +132,42 @@ local function createUI()
     toothBtn.TextScaled = true
     toothBtn.BackgroundTransparency = 1
 
-    -- mini icon (cuando minimizado)
     local miniBtn = Instance.new("TextButton", gui)
     miniBtn.Name = "MiniBtn"
     miniBtn.Size = UDim2.new(0,44,0,44)
-    miniBtn.Position = main.Position
+    miniBtn.Position = frame.Position
     miniBtn.Text = "🦷"
     miniBtn.Font = Enum.Font.SourceSans
     miniBtn.TextScaled = true
     miniBtn.BackgroundTransparency = 0.2
     miniBtn.Visible = false
-    local miniCorner = Instance.new("UICorner", miniBtn); miniCorner.CornerRadius = UDim.new(0,8)
+    local miniRC = Instance.new("UICorner", miniBtn); miniRC.CornerRadius = UDim.new(0,8)
 
-    -- Scroll for options
-    local scroll = Instance.new("ScrollingFrame", main)
-    scroll.Name = "OptionsScroll"
-    scroll.Size = UDim2.new(1,-16,1,-56)
-    scroll.Position = UDim2.new(0,8,0,40)
-    scroll.BackgroundTransparency = 1
-    scroll.ScrollBarThickness = 6
-    local listLayout = Instance.new("UIListLayout", scroll); listLayout.Padding = UDim.new(0,8); listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    local pad = Instance.new("UIPadding", scroll); pad.PaddingLeft = UDim.new(0,6); pad.PaddingRight = UDim.new(0,6); pad.PaddingTop = UDim.new(0,6)
+    local Scroll = Instance.new("ScrollingFrame", frame)
+    Scroll.Name = "OptionsScroll"
+    Scroll.Size = UDim2.new(1,-16,1,-56)
+    Scroll.Position = UDim2.new(0,8,0,40)
+    Scroll.BackgroundTransparency = 1
+    Scroll.ScrollBarThickness = 6
+    local layout = Instance.new("UIListLayout", Scroll); layout.Padding = UDim.new(0,8); layout.SortOrder = Enum.SortOrder.LayoutOrder
+    local pad = Instance.new("UIPadding", Scroll); pad.PaddingLeft = UDim.new(0,6); pad.PaddingRight = UDim.new(0,6); pad.PaddingTop = UDim.new(0,6)
 
-    -- rainbow driver (hue rotation)
+    -- rainbow
     local rainbow = {h = 0, col = Color3.fromRGB(255,0,0)}
     task.spawn(function()
         while gui.Parent do
             rainbow.h = (rainbow.h + 3) % 360
-            rainbow.col = Color3.fromHSV(rainbow.h/360, 1, 1)
+            rainbow.col = Color3.fromHSV(rainbow.h/360,1,1)
             task.wait(0.04)
         end
     end)
 
-    local function CreateOption(name, order, callback)
-        local rect = Instance.new("Frame", scroll)
+    local function CreateOption(name, callback)
+        local rect = Instance.new("Frame", Scroll)
         rect.Name = "OptRect_"..name:gsub("%s+","")
         rect.Size = UDim2.new(1,0,0,36)
         rect.BackgroundColor3 = Color3.fromRGB(119,136,153)
-        local rc = Instance.new("UICorner", rect); rc.CornerRadius = UDim.new(0,6)
+        local rcc = Instance.new("UICorner", rect); rcc.CornerRadius = UDim.new(0,6)
         local stroke = Instance.new("UIStroke", rect); stroke.Thickness = 2
         local btn = Instance.new("TextButton", rect)
         btn.Size = UDim2.new(1,-8,1,-8); btn.Position = UDim2.new(0,4,0,4)
@@ -196,7 +178,6 @@ local function createUI()
         btn.TextColor3 = rainbow.col
         btn.AutoButtonColor = true
         if callback then btn.MouseButton1Click:Connect(function() pcall(callback) end) end
-        -- update rainbow visuals
         task.spawn(function()
             while rect.Parent do
                 stroke.Color = rainbow.col
@@ -207,47 +188,35 @@ local function createUI()
         return rect, btn
     end
 
-    -- draggable main frame (title bar)
+    -- drag main via titleBar
     do
         local dragging, dragStart, startPos
         titleBar.InputBegan:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                 dragging = true
                 dragStart = input.Position
-                startPos = main.Position
-                input.Changed:Connect(function()
-                    if input.UserInputState == Enum.UserInputState.End then dragging = false end
-                end)
+                startPos = frame.Position
+                input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
             end
         end)
         UIS.InputChanged:Connect(function(input)
             if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
                 local delta = input.Position - dragStart
-                main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+                frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
             end
         end)
     end
 
-    -- minimize / restore behavior
     local minimized = false
-    local function minimize()
-        minimized = true
-        main.Visible = false
-        miniBtn.Position = main.Position
-        miniBtn.Visible = true
-    end
-    local function restore()
-        minimized = false
-        main.Visible = true
-        miniBtn.Visible = false
-    end
+    local function minimize() minimized = true; frame.Visible = false; miniBtn.Position = frame.Position; miniBtn.Visible = true end
+    local function restore() minimized = false; frame.Visible = true; miniBtn.Visible = false end
     toothBtn.MouseButton1Click:Connect(function() if minimized then restore() else minimize() end)
     miniBtn.MouseButton1Click:Connect(restore)
 
     return {
         Gui = gui,
-        Main = main,
-        Scroll = scroll,
+        Frame = frame,
+        Scroll = Scroll,
         CreateOption = CreateOption,
         Notify = Notify
     }
@@ -255,10 +224,8 @@ end
 
 local UI = createUI()
 
--- ===== Options functionality (preserve labels & order) =====
-
--- Guardar TP 1
-UI.CreateOption("Guardar TP 1", 0, function()
+-- ===== Options (idénticos) =====
+UI.CreateOption("Guardar TP 1", function()
     if rootPart and rootPart.CFrame then
         savedTP1 = rootPart.CFrame
         UI.Notify("📍 TP 1 guardado")
@@ -267,11 +234,9 @@ UI.CreateOption("Guardar TP 1", 0, function()
     end
 end)
 
--- Ir a TP 1
-UI.CreateOption("Ir a TP 1", 1, function()
+UI.CreateOption("Ir a TP 1", function()
     if savedTP1 and rootPart then
         pcall(function() rootPart.CFrame = savedTP1 end)
-        -- reaplicar estados tras teleport para evitar que se "resetee" algo
         task.delay(0.02, applyStates)
         task.delay(0.12, applyStates)
         UI.Notify("✅ Teletransportado a TP 1")
@@ -280,24 +245,22 @@ UI.CreateOption("Ir a TP 1", 1, function()
     end
 end)
 
--- Multi Jump toggle
-UI.CreateOption("Multi Jump", 2, function()
+UI.CreateOption("Multi Jump", function()
     States.MultiJump = not States.MultiJump
     UI.Notify(States.MultiJump and "🟢 Multi Jump activado" or "🔴 Multi Jump desactivado")
 end)
 
--- Speed Boost option (abrirá menú)
--- We'll create the SpeedMenu UI separately and make it movable + slide-on-open
+-- Speed Menu (movible y deslizado suave) - mismo diseño que V.2.6.8
 local SpeedMenu = Instance.new("Frame")
 SpeedMenu.Name = "SpeedMenu"
 SpeedMenu.Size = UDim2.new(0,160,0,120)
-SpeedMenu.Position = UI.Main.Position + UDim2.new(0, UI.Main.Size.X.Offset + 8, 0, 0)
+SpeedMenu.Position = UI.Frame.Position + UDim2.new(0, UI.Frame.Size.X.Offset + 8, 0, 0)
 SpeedMenu.AnchorPoint = Vector2.new(0,0)
 SpeedMenu.BackgroundColor3 = Color3.fromRGB(30,30,30)
 SpeedMenu.BorderSizePixel = 0
 SpeedMenu.Visible = false
 SpeedMenu.Parent = UI.Gui
-local smCorner = Instance.new("UICorner", SpeedMenu); smCorner.CornerRadius = UDim.new(0,8)
+local smRC = Instance.new("UICorner", SpeedMenu); smRC.CornerRadius = UDim.new(0,8)
 
 local smTitle = Instance.new("TextLabel", SpeedMenu)
 smTitle.Size = UDim2.new(1,-10,0,24)
@@ -334,6 +297,7 @@ applyBtn.Position = UDim2.new(0,86,0,60)
 applyBtn.Text = "Set"
 applyBtn.Font = Enum.Font.Gotham
 applyBtn.TextScaled = true
+applyBtn.BackgroundColor3 = Color3.fromRGB(200,200,200)
 
 local onOffBtn = Instance.new("TextButton", SpeedMenu)
 onOffBtn.Size = UDim2.new(0,140,0,30)
@@ -344,60 +308,50 @@ onOffBtn.TextScaled = true
 onOffBtn.BackgroundColor3 = (States.SpeedBoost and Color3.fromRGB(90,200,90) or Color3.fromRGB(200,90,90))
 onOffBtn.TextColor3 = Color3.new(1,1,1)
 
-local function updateSpeedVisuals()
+local function updateSpeedMenu()
     inputBox.Text = tostring(States.SpeedChoice)
     States.SpeedMultiplier = choiceToMultiplier(States.SpeedChoice)
     onOffBtn.Text = (States.SpeedBoost and "ON" or "OFF")
     onOffBtn.BackgroundColor3 = (States.SpeedBoost and Color3.fromRGB(90,200,90) or Color3.fromRGB(200,90,90))
 end
-updateSpeedVisuals()
+updateSpeedMenu()
 
 applyBtn.MouseButton1Click:Connect(function()
     local v = tonumber(inputBox.Text)
     if not v then UI.Notify("⚠️ Ingresa número 1-5"); return end
-    v = math.clamp(math.floor(v), 1, 5)
+    v = math.clamp(math.floor(v),1,5)
     States.SpeedChoice = v
     States.SpeedMultiplier = choiceToMultiplier(v)
     UI.Notify("🔧 Speed set a "..tostring(v).." (x"..tostring(States.SpeedMultiplier)..")")
-    if States.SpeedBoost and humanoid then
-        applyStates()
-    end
-    updateSpeedVisuals()
+    if States.SpeedBoost and humanoid then applyStates() end
+    updateSpeedMenu()
 end)
 
 onOffBtn.MouseButton1Click:Connect(function()
     States.SpeedBoost = not States.SpeedBoost
     States.SpeedMultiplier = States.SpeedMultiplier or choiceToMultiplier(States.SpeedChoice)
-    if States.SpeedBoost then
-        UI.Notify("🟢 Speed Boost ON (x"..tostring(States.SpeedMultiplier)..")")
-    else
-        UI.Notify("🔴 Speed Boost OFF")
-    end
-    applyStates()
-    updateSpeedVisuals()
+    if States.SpeedBoost then UI.Notify("🟢 Speed Boost ON (x"..tostring(States.SpeedMultiplier)..")") else UI.Notify("🔴 Speed Boost OFF") end
+    if humanoid then applyStates() end
+    updateSpeedMenu()
 end)
 
--- Speed menu movible + slide-in animation if not moved yet
+-- Mover SpeedMenu (arrastrar por smTitle) + suavizado al abrir si no movido
 local speedDragging = false
-local speedDragStart = Vector2.new()
-local speedStartAbs = Vector2.new()
-local speedMoved = false
+local speedDragStart = Vector2.new(0,0)
+local speedStartAbsPos = Vector2.new(0,0)
+local speedHasBeenMoved = false
 
 smTitle.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         speedDragging = true
         speedDragStart = input.Position
-        -- Guardar absolute start; si 0, se actualizará
-        speedStartAbs = SpeedMenu.AbsolutePosition
+        speedStartAbsPos = SpeedMenu.AbsolutePosition
         input.Changed:Connect(function()
             if input.UserInputState == Enum.UserInputState.End then
                 speedDragging = false
-                speedMoved = true
-                -- pequeño tween para "asentar" la posición
+                speedHasBeenMoved = true
                 local tweenInfo = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-                pcall(function()
-                    TweenService:Create(SpeedMenu, tweenInfo, {Position = SpeedMenu.Position}):Play()
-                end)
+                pcall(function() TweenService:Create(SpeedMenu, tweenInfo, {Position = SpeedMenu.Position}):Play() end)
             end
         end)
     end
@@ -406,16 +360,16 @@ end)
 UIS.InputChanged:Connect(function(input)
     if speedDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
         local delta = input.Position - speedDragStart
-        local newX = speedStartAbs.X + delta.X
-        local newY = speedStartAbs.Y + delta.Y
+        local newX = speedStartAbsPos.X + delta.X
+        local newY = speedStartAbsPos.Y + delta.Y
         SpeedMenu.Position = UDim2.new(0, math.floor(newX), 0, math.floor(newY))
     end
 end)
 
-local function positionSpeedIfNeeded()
-    if not speedMoved then
+local function positionSpeedMenuIfNeeded()
+    if not speedHasBeenMoved then
         pcall(function()
-            local f = UI.Main
+            local f = UI.Frame
             if f then
                 local pos = f.AbsolutePosition
                 local size = f.AbsoluteSize
@@ -428,72 +382,53 @@ local function positionSpeedIfNeeded()
 end
 
 local speedVisible = false
-local function toggleSpeed()
+local function toggleSpeedMenu()
     speedVisible = not speedVisible
     SpeedMenu.Visible = speedVisible
-    if speedVisible then positionSpeedIfNeeded() end
+    if speedVisible then positionSpeedMenuIfNeeded() end
 end
 
-UI.CreateOption("Speed Boost", 3, function() toggleSpeed() end)
+UI.CreateOption("Speed Boost", function() toggleSpeedMenu() end)
 
--- Noclip
-UI.CreateOption("Noclip", 4, function()
+UI.CreateOption("Noclip", function()
     States.Noclip = not States.Noclip
     if States.Noclip and char then
-        for _,p in ipairs(char:GetDescendants()) do
-            if p:IsA("BasePart") then p.CanCollide = false end
-        end
+        for _,p in ipairs(char:GetDescendants()) do if p:IsA("BasePart") then p.CanCollide = false end end
         UI.Notify("🟢 Noclip activado")
     else
         UI.Notify("🔴 Noclip desactivado")
     end
 end)
 
--- ===== Multi Jump improved handling =====
+-- ===== MultiJump mejorado =====
 local holdingJump = false
-local lastPulse = 0
+local lastHoldPulse = 0
 local holdImpulse = 4.5
 local holdInterval = 0.12
 local maxHoldY = 55
 
--- JumpRequest for consistent jumping behavior
 UIS.JumpRequest:Connect(function()
     if not States.MultiJump or not humanoid or not rootPart then return end
-    pcall(function()
-        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-        humanoid.Jump = true
-    end)
+    pcall(function() humanoid:ChangeState(Enum.HumanoidStateType.Jumping); humanoid.Jump = true end)
     holdingJump = true
-    lastPulse = tick()
-    task.delay(0.55, function()
-        if tick() - lastPulse > 0.52 then holdingJump = false end
-    end)
+    lastHoldPulse = tick()
+    task.delay(0.55, function() if tick() - lastHoldPulse > 0.52 then holdingJump = false end end)
 end)
 
 UIS.InputBegan:Connect(function(input, gpe)
     if gpe then return end
     if input.UserInputType == Enum.UserInputType.Keyboard then
-        if input.KeyCode == Enum.KeyCode.Space then
-            holdingJump = true
-            lastPulse = tick()
-        elseif input.KeyCode == Enum.KeyCode.LeftControl then
-            UI.Main.Visible = not UI.Main.Visible
-            UI.Notify(UI.Main.Visible and "🔓 Panel mostrado" or "🔒 Panel minimizado")
-        end
+        if input.KeyCode == Enum.KeyCode.Space then holdingJump = true; lastHoldPulse = tick()
+        elseif input.KeyCode == Enum.KeyCode.LeftControl then UI.Frame.Visible = not UI.Frame.Visible; UI.Notify(UI.Frame.Visible and "🔓 Panel mostrado" or "🔒 Panel minimizado") end
     end
 end)
-UIS.InputEnded:Connect(function(input, gpe)
-    if gpe then return end
-    if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.Space then
-        holdingJump = false
-    end
-end)
+UIS.InputEnded:Connect(function(input, gpe) if gpe then return end if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.Space then holdingJump = false end end)
 
 RunService.Heartbeat:Connect(function(dt)
     if States.MultiJump and holdingJump and humanoid and rootPart then
         local now = tick()
-        if now - lastPulse >= holdInterval then
-            lastPulse = now
+        if now - lastHoldPulse >= holdInterval then
+            lastHoldPulse = now
             pcall(function()
                 local v = rootPart.Velocity
                 local newY = math.min(v.Y + holdImpulse, maxHoldY)
@@ -512,16 +447,15 @@ end)
 
 -- Reapply states on respawn
 Players.LocalPlayer.CharacterAdded:Connect(function(c)
-    bindCharacterEnhanced(c)
+    bindCharacter(c)
     task.delay(0.05, applyStates)
     task.delay(0.15, applyStates)
 end)
 
--- ensure helper functions exist in scope (no changes to logic)
-function bindCharacterEnhanced(c)
+-- helpers present (no cambios)
+function bindCharacter(c)
     bindCharacter(c)
 end
 
--- Inicial
 States.SpeedMultiplier = choiceToMultiplier(States.SpeedChoice)
 UI.Notify("✅ Emerson Hub v2.6.9 cargado (Studio).")
