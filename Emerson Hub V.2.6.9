@@ -1,8 +1,12 @@
--- V.2.6.9 (Studio-safe) - Igual a V.2.6.8 pero con SpeedMenu movible y deslizado suave
--- USAR SOLO EN ROBLOX STUDIO (StarterPlayer -> StarterPlayerScripts)
--- No incluye compatibilidad para executors externos.
+-- V.2.6.9 Studio (LocalScript)
+-- Emerson Hub — Versión de prueba para Roblox Studio
+-- Pegar en StarterPlayer -> StarterPlayerScripts
+-- STUDIO ONLY (no incluye compatibilidad para executors externos)
 
-if not game:IsLoaded() then game.Loaded:Wait() end
+-- === Bloque de compatibilidad robusto (Studio) ===
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -11,13 +15,14 @@ local StarterGui = game:GetService("StarterGui")
 local TweenService = game:GetService("TweenService")
 
 local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui", 12)
+local PlayerGui = LocalPlayer and LocalPlayer:WaitForChild("PlayerGui", 12)
 if not PlayerGui then
-    warn("[Emerson v2.6.9] PlayerGui no encontrado. Ejecuta Play/Start Player en Studio.")
+    warn("[Emerson v2.6.9] PlayerGui no disponible. Ejecuta 'Play' o 'Start Server -> Start Player' en Studio.")
     return
 end
+-- === fin bloque de compatibilidad ===
 
--- Notificaciones (estilo V2.6.x)
+-- Notificación estilo V2.6.x
 local function Notify(msg)
     pcall(function()
         StarterGui:SetCore("SendNotification", {
@@ -28,7 +33,7 @@ local function Notify(msg)
     end)
 end
 
--- Estados persistentes
+-- Estados persistentes en sesión
 local States = {
     SpeedBoost = false,
     SpeedChoice = 3, -- 1..5
@@ -51,6 +56,7 @@ States.SpeedMultiplier = choiceToMultiplier(States.SpeedChoice)
 local char, humanoid, rootPart, originalWalkSpeed
 local savedTP1 = nil
 
+-- reaplicar estados (Speed/Noclip) tras teleport/respawn
 local function applyStates()
     if humanoid then
         originalWalkSpeed = originalWalkSpeed or humanoid.WalkSpeed or 16
@@ -62,7 +68,9 @@ local function applyStates()
     end
     if States.Noclip and char then
         for _,p in ipairs(char:GetDescendants()) do
-            if p:IsA("BasePart") then p.CanCollide = false end
+            if p:IsA("BasePart") then
+                p.CanCollide = false
+            end
         end
     end
 end
@@ -76,6 +84,7 @@ local function bindCharacter(c)
     rootPart = c:FindFirstChild("HumanoidRootPart") or c:WaitForChild("HumanoidRootPart", 5)
     if humanoid then originalWalkSpeed = originalWalkSpeed or humanoid.WalkSpeed or 16 end
     applyStates()
+
     if teleportWatcher and teleportWatcher.Disconnect then
         pcall(function() teleportWatcher:Disconnect() end)
         teleportWatcher = nil
